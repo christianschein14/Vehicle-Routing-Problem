@@ -1,0 +1,82 @@
+import random
+
+# --------------------------
+# ROTINA DE GERAÇÃO DE INSTÂNCIAS (DATASETS)
+# --------------------------
+
+def gerar_instancia_manual():
+    """
+    Permite configurar manualmente os parâmetros da instância via CLI.
+    O usuário informa o número de clientes, caminhões, posições e demandas.
+    """
+    print("Configurar instância manualmente.")
+    num_clientes = int(input("Quantos clientes? "))
+    num_caminhoes = int(input("Quantos caminhões? "))
+
+    deposito_x = float(input("Coordenada X do depósito: "))
+    deposito_y = float(input("Coordenada Y do depósito: "))
+    deposito = Cliente(-1, deposito_x, deposito_y, 0)
+
+    clientes = []
+    for i in range(num_clientes):
+        x = float(input(f"Cliente {i} - X: "))
+        y = float(input(f"Cliente {i} - Y: "))
+        d = float(input(f"Cliente {i} - Demanda: "))
+        clientes.append(Cliente(i, x, y, d))
+
+    caminhoes = []
+    for k in range(num_caminhoes):
+        cap = float(input(f"Capacidade do caminhão {k}: "))
+        caminhoes.append(Caminhao(k, cap))
+
+    return deposito, clientes, caminhoes
+
+
+def gerar_instancia_aleatoria(num_clientes=10, num_caminhoes=3, area=100, demanda_max=40):
+    """
+    Gera uma instância aleatória com base em parâmetros configuráveis.
+    Permite testes rápidos sem necessidade de entrada manual.
+    """
+    random.seed(1)  # reprodutibilidade
+    deposito = Cliente(-1, area / 2, area / 2, 0)
+
+    clientes = [
+        Cliente(i, random.uniform(0, area), random.uniform(0, area), random.uniform(5, demanda_max))
+        for i in range(num_clientes)
+    ]
+
+    caminhoes = [
+        Caminhao(k, random.choice([100.0, 120.0, 150.0]))
+        for k in range(num_caminhoes)
+    ]
+
+    return deposito, clientes, caminhoes
+
+
+# --------------------------
+# INTERFACE DE LINHA DE COMANDO (CLI)
+# --------------------------
+def main():
+    """
+    Permite ao usuário escolher entre gerar uma instância manual ou aleatória via CLI.
+    """
+    modo = input("Modo (m)anual ou (a)leatório? [a]: ").strip().lower() or "a"
+
+    if modo == "m":
+        deposito, clientes, caminhoes = gerar_instancia_manual()
+    else:
+        deposito, clientes, caminhoes = gerar_instancia_aleatoria()
+
+    # Exibe a instância gerada
+    print("\n=== Instância Gerada ===")
+    print(f"Depósito: ({deposito.x:.1f}, {deposito.y:.1f})")
+    print("\nClientes:")
+    for c in clientes:
+        print(f"  Cliente {c.id}: ({c.x:.1f}, {c.y:.1f}) - Demanda {c.demanda:.1f}")
+    print("\nCaminhões:")
+    for t in caminhoes:
+        print(f"  Caminhão {t.id}: capacidade {t.capacidade:.1f}")
+
+
+if __name__ == "__main__":
+    main()
