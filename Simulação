@@ -1,0 +1,108 @@
+import math
+import random
+
+# --------------------------
+# ARQUIVOS ANTERIORES (modelo e geração)
+# --------------------------
+# Considera-se que as classes Cliente e Caminhao,
+# além das funções de geração de instâncias, já estão implementadas.
+# Aqui começa o arcabouço da simulação propriamente dita.
+# --------------------------
+
+def distancia(a, b):
+    """
+    Calcula a distância euclidiana entre dois pontos (cliente ou depósito).
+    Essa função será usada durante a simulação para estimar deslocamentos.
+    """
+    return math.hypot(a.x - b.x, a.y - b.y)
+
+
+# --------------------------
+# ESTRUTURA BÁSICA DE SIMULAÇÃO
+# --------------------------
+def simular_entregas_basico(caminhao, deposito):
+    """
+    Arcabouço (estrutura base) da simulação de entregas.
+
+    Neste checkpoint, a função ainda não realiza o processo completo
+    de entrega ou otimização, apenas imprime os passos simulados.
+
+    Objetivo:
+    - Demonstrar o funcionamento da estrutura da simulação.
+    - Mostrar como os parâmetros configuráveis (CLI) serão utilizados.
+    """
+    print(f"\nSimulando rota do caminhão {caminhao.id}...")
+    for cliente in caminhao.rota:
+        d = distancia(deposito, cliente)
+        print(f"  -> Indo até o cliente {cliente.id} | distância: {d:.2f} | demanda: {cliente.demanda:.1f}")
+
+
+# --------------------------
+# DISTRIBUIÇÃO INICIAL (BASE DA SIMULAÇÃO)
+# --------------------------
+def distribuir_clientes_balanceado(clientes, caminhoes):
+    """
+    Distribui os clientes de forma simples e balanceada entre caminhões.
+    Essa função cria uma base de dados para a simulação.
+    """
+    cargas_assigned = [0.0 for _ in caminhoes]
+    assigned_lists = [[] for _ in caminhoes]
+    clientes_sorted = sorted(clientes, key=lambda c: c.demanda, reverse=True)
+
+    for c in clientes_sorted:
+        idx = min(range(len(caminhoes)), key=lambda i: cargas_assigned[i])
+        assigned_lists[idx].append(c)
+        cargas_assigned[idx] += c.demanda
+
+    for i, tr in enumerate(caminhoes):
+        tr.rota = assigned_lists[i][:]
+
+    return caminhoes
+
+
+# --------------------------
+# FUNÇÃO PRINCIPAL (CLI)
+# --------------------------
+def main():
+    """
+    Permite configurar e executar a simulação via linha de comando (CLI).
+
+    O usuário pode:
+    - Escolher o modo de geração (manual ou aleatório)
+    - Definir o número de clientes, caminhões e parâmetros gerais
+    - Executar o arcabouço da simulação e visualizar os resultados
+    """
+    print("=== Simulação do Problema de Entregas (Arcabouço Inicial) ===")
+
+    modo = input("Modo (m)anual ou (a)leatório? [a]: ").strip().lower() or "a"
+
+    if modo == "m":
+        deposito, clientes, caminhoes = gerar_instancia_manual()
+    else:
+        # Parâmetros configuráveis pelo usuário
+        num_clientes = int(input("Número de clientes [8]: ") or 8)
+        num_caminhoes = int(input("Número de caminhões [3]: ") or 3)
+        area = float(input("Tamanho da área [100]: ") or 100)
+        demanda_max = float(input("Demanda máxima por cliente [40]: ") or 40)
+
+        deposito, clientes, caminhoes = gerar_instancia_aleatoria(
+            num_clientes=num_clientes,
+            num_caminhoes=num_caminhoes,
+            area=area,
+            demanda_max=demanda_max
+        )
+
+    # Distribuição inicial de clientes (base para simulação)
+    caminhoes = distribuir_clientes_balanceado(clientes, caminhoes)
+
+    print("\nDistribuição inicial de clientes por caminhão:")
+    for tr in caminhoes:
+        print(f"Caminhão {tr.id} (capacidade {tr.capacidade}): {[c.id for c in tr.rota]}")
+
+    # Simulação básica
+    for tr in caminhoes:
+        simular_entregas_basico(tr, deposito)
+
+
+if __name__ == "__main__":
+    main()
