@@ -1,0 +1,28 @@
+class Cliente:
+    def __init__(self, id, x, y, demanda):
+        """
+        Representa um cliente que deve ser atendido por um caminhão.
+
+        Parâmetros:
+        - id: identificador único do cliente
+        - x, y: coordenadas geográficas (posição)
+        - demanda: quantidade total de carga a ser entregue
+        """
+        self.id = id
+        self.x = x
+        self.y = y
+        self.demanda = demanda  # demanda total do cliente
+
+
+class Caminhao:
+    def __init__(self, id, capacidade):
+        """
+        Representa um caminhão responsável por realizar entregas.
+
+        Parâmetros:
+        - id: identificador único do caminhão
+        - capacidade: capacidade máxima de carga
+        """
+        self.id = id
+        self.capacidade = capacidade
+        self.rota = []  # lista de clientes atribuídos ao caminhão (ordem de entrega)
