@@ -1,0 +1,236 @@
+import math
+import random
+from copy import deepcopy
+
+
+# ENTIDADES
+
+class Cliente:
+    def __init__(self, id, x, y, demanda):
+        self.id = id
+        self.x = x
+        self.y = y
+        self.demanda = demanda
+
+class Caminhao:
+    def __init__(self, id, capacidade):
+        self.id = id
+        self.capacidade = capacidade
+        self.rota = []
+        self.distancia_percorrida = 0.0
+        self.relatorio_entregas = []
+        self.retornos_deposito = 0
+
+ 
+ 
+def distancia(a, b):
+    return math.hypot(a.x - b.x, a.y - b.y)
+
+
+
+# GERAÇÃO DE INSTÂNCIAS
+
+def gerar_instancia_manual():
+    num_clientes = int(input("Quantos clientes? "))
+    num_caminhoes = int(input("Quantos caminhões? "))
+
+    deposito_x = float(input("Coordenada X do depósito: "))
+    deposito_y = float(input("Coordenada Y do depósito: "))
+    deposito = Cliente(-1, deposito_x, deposito_y, 0)
+
+    clientes = []
+    for i in range(num_clientes):
+        x = float(input(f"Cliente {i} - X: "))
+        y = float(input(f"Cliente {i} - Y: "))
+        d = float(input(f"Cliente {i} - Demanda: "))
+        clientes.append(Cliente(i, x, y, d))
+
+    caminhoes = []
+    for k in range(num_caminhoes):
+        cap = float(input(f"Capacidade do caminhão {k}: "))
+        caminhoes.append(Caminhao(k, cap))
+
+    return deposito, clientes, caminhoes
+
+
+def gerar_instancia_aleatoria(num_clientes=12, num_caminhoes=3, area=100, demanda_max=40):
+    random.seed(1)
+    deposito = Cliente(-1, area / 2, area / 2, 0)
+    clientes = [
+        Cliente(i, random.uniform(0, area), random.uniform(0, area), random.uniform(5, demanda_max))
+        for i in range(num_clientes)
+    ]
+    caminhoes = [
+        Caminhao(k, random.choice([100.0, 120.0, 150.0]))
+        for k in range(num_caminhoes)
+    ]
+    return deposito, clientes, caminhoes
+
+
+
+# DISTRIBUIÇÃO INICIAL
+
+def distribuir_clientes_balanceado(clientes, caminhoes):
+    cargas_assigned = [0.0 for _ in caminhoes]
+    assigned_lists = [[] for _ in caminhoes]
+    clientes_sorted = sorted(clientes, key=lambda c: c.demanda, reverse=True)
+
+    for c in clientes_sorted:
+        idx = min(range(len(caminhoes)), key=lambda i: cargas_assigned[i])
+        assigned_lists[idx].append(c)
+        cargas_assigned[idx] += c.demanda
+
+    for i, tr in enumerate(caminhoes):
+        tr.rota = assigned_lists[i][:]
+
+    return caminhoes
+
+
+
+# SIMULAÇÃO
+
+def simular_entregas_caminhao(caminhao, deposito):
+    demandas = {c.id: c.demanda for c in caminhao.rota}
+    pos = deposito
+    carga = caminhao.capacidade
+    distancia_total = 0.0
+    eventos = []
+    retornos = 0
+
+    for cliente in caminhao.rota:
+        while demandas[cliente.id] > 0:
+            d_to_cliente = distancia(pos, cliente)
+            distancia_total += d_to_cliente
+            pos = cliente
+
+            if carga <= 0:
+                d_to_depot = distancia(pos, deposito)
+                distancia_total += d_to_depot
+                pos = deposito
+                carga = caminhao.capacidade
+                retornos += 1
+                eventos.append(("retorno_sem_carga", cliente.id))
+                d_back = distancia(pos, cliente)
+                distancia_total += d_back
+                pos = cliente
+
+            if carga >= demandas[cliente.id]:
+                entregue = demandas[cliente.id]
+                carga -= entregue
+                demandas[cliente.id] = 0.0
+                eventos.append(("entrega_total", cliente.id, entregue))
+            else:
+                entregue = carga
+                demandas[cliente.id] -= entregue
+                carga = 0.0
+                eventos.append(("entrega_parcial", cliente.id, entregue, demandas[cliente.id]))
+                d_to_depot = distancia(pos, deposito)
+                distancia_total += d_to_depot
+                pos = deposito
+                carga = caminhao.capacidade
+                retornos += 1
+                eventos.append(("retorno_excesso", cliente.id))
+
+    d_final = distancia(pos, deposito)
+    distancia_total += d_final
+    eventos.append(("fim",))
+
+    caminhao.distancia_percorrida = distancia_total
+    caminhao.relatorio_entregas = eventos
+    caminhao.retornos_deposito = retornos
+
+    return distancia_total
+
+
+
+# FUNÇÃO DE AVALIAÇÃO
+
+def avaliar_solucao(caminhoes, deposito):
+    total = 0.0
+    for tr in caminhoes:
+        total += simular_entregas_caminhao(tr, deposito)
+    return total
+
+
+
+# VIZINHANÇA DO SA
+
+def gerar_vizinho(caminhoes):
+    novo = deepcopy(caminhoes)
+    candidatos = [i for i, t in enumerate(novo) if len(t.rota) >= 2]
+    if not candidatos:
+        return novo
+    idx = random.choice(candidatos)
+    rota = novo[idx].rota
+    i, j = random.sample(range(len(rota)), 2)
+    rota[i], rota[j] = rota[j], rota[i]
+    return novo
+
+
+# SIMULATED ANNEALING
+
+def simulated_annealing(caminhoes, deposito, temp=50.0, n_iter=1500):
+    atual = deepcopy(caminhoes)
+    melhor = deepcopy(caminhoes)
+    val_atual = avaliar_solucao(atual, deposito)
+    val_melhor = val_atual
+
+    for _ in range(n_iter):
+        viz = gerar_vizinho(atual)
+        val_viz = avaliar_solucao(viz, deposito)
+        delta = val_viz - val_atual
+
+        if delta < 0 or random.random() < math.exp(-delta / temp):
+            atual = viz
+            val_atual = val_viz
+            if val_viz < val_melhor:
+                melhor = deepcopy(viz)
+                val_melhor = val_viz
+
+    return melhor, val_melhor
+
+
+# CRIAÇÃO DE RELATÓRIO FINAL
+
+def imprimir_relatorio(caminhoes, deposito):
+    print("\n========== RELATÓRIO FINAL ==========")
+    total_dist = 0
+
+    for tr in caminhoes:
+        simular_entregas_caminhao(tr, deposito)
+        total_dist += tr.distancia_percorrida
+
+        print(f"\n--- Caminhão {tr.id} ---")
+        print(f"Capacidade: {tr.capacidade}")
+        print(f"Distância percorrida: {tr.distancia_percorrida:.2f}")
+        print(f"Retornos ao depósito: {tr.retornos_deposito}")
+
+        for ev in tr.relatorio_entregas:
+            print(" ", ev)
+
+    print(f"\nDistância total: {total_dist:.2f}")
+    print("=====================================\n")
+
+
+# EXECUÇÃO PRINCIPAL
+
+def main():
+    modo = input("Modo (m)anual ou (a)leatório)? [a]: ").strip().lower() or "a"
+    if modo == "m":
+        deposito, clientes, caminhoes = gerar_instancia_manual()
+    else:
+        deposito, clientes, caminhoes = gerar_instancia_aleatoria()
+
+    caminhoes = distribuir_clientes_balanceado(clientes, caminhoes)
+    print("\nDistribuição inicial:")
+    for tr in caminhoes:
+        print(f"Caminhão {tr.id}: {[c.id for c in tr.rota]}")
+
+    melhor, custo = simulated_annealing(caminhoes, deposito)
+    print(f"\nMelhor custo encontrado: {custo:.2f}")
+
+    imprimir_relatorio(melhor, deposito)
+
+
+if __name__ == "__main__":
+    main()
